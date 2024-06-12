@@ -1,0 +1,77 @@
+import cv2
+import numpy as np
+
+# Load the screenshot
+image_path = 'Screenshot 2024-06-06 110337.jpeg'
+frame = cv2.imread(image_path)
+
+if frame is None:
+    print("Cannot open image")
+    exit()
+
+# Initial steering angle
+steering_angle = 0
+
+# Function to update the guidelines based on the steering angle
+def update_guidelines(width, height, angle):
+    # Parameters for the curve (you can adjust these)
+    curvature = angle * 0.02  # Adjust this factor to control the curve intensity
+    
+    # Starting points
+    start_top_left = (int(width * 0.3), int(height * 0.5))
+    start_top_right = (int(width * 0.7), int(height * 0.5))
+    start_bottom_left = (int(width * 0.1), height)
+    start_bottom_right = (int(width * 0.9), height)
+
+    # Calculate the curve for the guidelines
+    def calculate_curve(start_point, curvature):
+        curve_points = []
+        for y in range(start_point[1], height, 5):
+            x_offset = int(curvature * (y - start_point[1]) ** 2)
+            x = start_point[0] + x_offset
+            curve_points.append((x, y))
+        return curve_points
+
+    top_left_curve = calculate_curve(start_top_left, -curvature)
+    top_right_curve = calculate_curve(start_top_right, curvature)
+    bottom_left_curve = calculate_curve(start_bottom_left, -curvature)
+    bottom_right_curve = calculate_curve(start_bottom_right, curvature)
+    
+    return top_left_curve, top_right_curve, bottom_left_curve, bottom_right_curve
+
+while True:
+    # Get the dimensions of the frame
+    height, width, _ = frame.shape
+    
+    # Update the guidelines based on the current steering angle
+    top_left_curve, top_right_curve, bottom_left_curve, bottom_right_curve = update_guidelines(width, height, steering_angle)
+    
+    # Find the minimum length of the curves to avoid index out of range
+    min_length = min(len(top_left_curve), len(top_right_curve), len(bottom_left_curve), len(bottom_right_curve))
+    
+    # Create a copy of the frame to draw the guidelines
+    display_frame = frame.copy()
+
+    # Draw the curved guidelines
+    for i in range(min_length - 1):
+        display_frame = cv2.line(display_frame, top_left_curve[i], top_left_curve[i+1], (0, 255, 0), 2)
+        display_frame = cv2.line(display_frame, top_right_curve[i], top_right_curve[i+1], (0, 255, 0), 2)
+        display_frame = cv2.line(display_frame, bottom_left_curve[i], bottom_left_curve[i+1], (0, 255, 0), 2)
+        display_frame = cv2.line(display_frame, bottom_right_curve[i], bottom_right_curve[i+1], (0, 255, 0), 2)
+    
+    # Draw the connecting line between the top left and right points
+    display_frame = cv2.line(display_frame, top_left_curve[0], top_right_curve[0], (0, 255, 0), 2)
+    
+    cv2.imshow('Screenshot with Guidelines', display_frame)
+    
+    # Press 'q' to quit
+    key = cv2.waitKey(0) & 0xFF
+    if key == ord('q'):
+        break
+    elif key == ord('a'):
+        steering_angle -= 5  # Turn left
+    elif key == ord('d'):
+        steering_angle += 5  # Turn right
+
+cv2.destroyAllWindows()
+
